@@ -87,7 +87,7 @@ if uploaded_file is not None:
 
     with col1:
         st.subheader("Visual Overlay Output")
-        st.image(annotated_img, caption="Green: Empty | Red: Occupied", use_column_width=True)
+        st.image(annotated_img, caption="Green: Empty | Red: Occupied", use_container_width=True)
 
     with col2:
         st.subheader("Parking Utilization Analytics")
