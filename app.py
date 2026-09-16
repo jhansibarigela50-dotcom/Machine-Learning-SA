@@ -1,7 +1,6 @@
 import streamlit as st
-import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from ultralytics import YOLO
 
 # Streamlit Page Setup
@@ -32,20 +31,22 @@ conf_threshold = st.sidebar.slider("Confidence Threshold", 0.10, 1.00, 0.35, 0.0
 uploaded_file = st.file_uploader("Upload Parking Image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Process Image Input
-    image = Image.open(uploaded_file)
-    img_array = np.array(image)
-
-    # Run Inference
-    results = model.predict(source=img_array, conf=conf_threshold)
+    # Process Image Input using PIL directly
+    image = Image.open(uploaded_file).convert("RGB")
+    
+    # Run YOLO Inference
+    results = model.predict(source=np.array(image), conf=conf_threshold)
     boxes = results[0].boxes
 
     occupied_count = 0
     empty_count = 0
     class_names = model.names
-    annotated_img = img_array.copy()
+    
+    # Prepare Drawing Canvas
+    annotated_img = image.copy()
+    draw = ImageDraw.Draw(annotated_img)
 
-    # Draw Overlay Visuals
+    # Draw Overlay Visuals using PIL
     for box in boxes:
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         cls_id = int(box.cls[0])
@@ -53,21 +54,15 @@ if uploaded_file is not None:
 
         if "empty" in label_name:
             empty_count += 1
-            box_color = (0, 255, 0)  # Green box for empty spaces
+            box_color = "#00FF00"  # Green for empty spaces
         else:
             occupied_count += 1
-            box_color = (0, 0, 255)  # Red box for occupied spaces
+            box_color = "#FF0000"  # Red for occupied spaces
 
-        cv2.rectangle(annotated_img, (x1, y1), (x2, y2), box_color, 2)
-        cv2.putText(
-            annotated_img,
-            label_name.capitalize(),
-            (x1, max(y1 - 5, 15)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            box_color,
-            2
-        )
+        # Draw Bounding Box Rectangle
+        draw.rectangle([x1, y1, x2, y2], outline=box_color, width=3)
+        # Draw Label Text
+        draw.text((x1, max(y1 - 12, 0)), label_name.capitalize(), fill=box_color)
 
     # Compute Occupancy Statistics
     total_slots = occupied_count + empty_count
