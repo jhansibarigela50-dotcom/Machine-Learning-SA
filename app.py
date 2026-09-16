@@ -10,22 +10,19 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load Trained Weights
+# Load Pre-trained YOLOv8 Base Model (Detects standard vehicles)
 @st.cache_resource
 def load_yolo_model():
-    return YOLO("best.pt")
+    return YOLO("yolov8n.pt")
 
-try:
-    model = load_yolo_model()
-except Exception as e:
-    st.error("Model file 'best.pt' not found in project root. Place your trained model file here.")
+model = load_yolo_model()
 
 st.title("🚗 ParkVision AI: Intelligent Urban Parking Platform")
 st.write("Upload a parking lot image for real-time occupancy detection, color-coded visual overlays, and intelligent driver guidance.")
 
 # Sidebar Configuration
 st.sidebar.header("Model Controls")
-conf_threshold = st.sidebar.slider("Confidence Threshold", 0.10, 1.00, 0.35, 0.05)
+conf_threshold = st.sidebar.slider("Confidence Threshold", 0.10, 1.00, 0.25, 0.05)
 
 # File Upload Section
 uploaded_file = st.file_uploader("Upload Parking Image...", type=["jpg", "jpeg", "png"])
@@ -39,34 +36,33 @@ if uploaded_file is not None:
     boxes = results[0].boxes
 
     occupied_count = 0
-    empty_count = 0
+    vehicle_classes = ["car", "truck", "bus", "motorcycle"]
     class_names = model.names
     
     # Prepare Drawing Canvas
     annotated_img = image.copy()
     draw = ImageDraw.Draw(annotated_img)
 
-    # Draw Overlay Visuals using PIL
+    # Process Detections
     for box in boxes:
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         cls_id = int(box.cls[0])
         label_name = class_names[cls_id].lower()
 
-        if "empty" in label_name:
-            empty_count += 1
-            box_color = "#00FF00"  # Green for empty spaces
-        else:
+        # Count detected vehicles as occupied slots
+        if label_name in vehicle_classes:
             occupied_count += 1
             box_color = "#FF0000"  # Red for occupied spaces
+            
+            # Draw Bounding Box & Label
+            draw.rectangle([x1, y1, x2, y2], outline=box_color, width=3)
+            draw.text((x1, max(y1 - 12, 0)), f"Occupied ({label_name.capitalize()})", fill=box_color)
 
-        # Draw Bounding Box Rectangle
-        draw.rectangle([x1, y1, x2, y2], outline=box_color, width=3)
-        # Draw Label Text
-        draw.text((x1, max(y1 - 12, 0)), label_name.capitalize(), fill=box_color)
-
-    # Compute Occupancy Statistics
-    total_slots = occupied_count + empty_count
-    occupancy_rate = (occupied_count / total_slots * 100) if total_slots > 0 else 0.0
+    # Note: Estimating available capacity based on detected vehicles
+    # You can adjust baseline_total_capacity to match your specific lot's capacity
+    baseline_total_capacity = max(occupied_count + 5, 20)
+    empty_count = max(0, baseline_total_capacity - occupied_count)
+    occupancy_rate = (occupied_count / baseline_total_capacity * 100) if baseline_total_capacity > 0 else 0.0
 
     # Decision Engine Logic
     if occupancy_rate < 40:
@@ -87,16 +83,16 @@ if uploaded_file is not None:
 
     with col1:
         st.subheader("Visual Overlay Output")
-        st.image(annotated_img, caption="Green: Empty | Red: Occupied", use_container_width=True)
+        st.image(annotated_img, caption="Red Bounding Boxes: Detected Occupied Vehicles", use_container_width=True)
 
     with col2:
         st.subheader("Parking Utilization Analytics")
         m1, m2 = st.columns(2)
-        m1.metric("Total Slots Detected", total_slots)
-        m2.metric("Available Slots", empty_count)
+        m1.metric("Estimated Total Capacity", baseline_total_capacity)
+        m2.metric("Estimated Available Slots", empty_count)
 
         m3, m4 = st.columns(2)
-        m3.metric("Occupied Slots", occupied_count)
+        m3.metric("Occupied Vehicles Detected", occupied_count)
         m4.metric("Occupancy Rate", f"{occupancy_rate:.1f}%")
 
         st.markdown("---")
