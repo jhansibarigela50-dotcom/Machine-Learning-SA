@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from ultralytics import YOLO
 
 # Streamlit Page Setup
@@ -31,7 +31,7 @@ conf_threshold = st.sidebar.slider("Confidence Threshold", 0.10, 1.00, 0.35, 0.0
 uploaded_file = st.file_uploader("Upload Parking Image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Process Image Input using PIL directly
+    # Process Image Input using PIL
     image = Image.open(uploaded_file).convert("RGB")
     
     # Run YOLO Inference
