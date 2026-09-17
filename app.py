@@ -17,7 +17,7 @@ import cv2
 # --------------------------------------------------------------------------
 # CONFIG — edit these to match how you trained your model
 # --------------------------------------------------------------------------
-MODEL_PATH = "models/best.pt"
+MODEL_PATH = "best.pt"
 
 # IMPORTANT: this must match the class order your model was trained with.
 # Check it yourself in Colab with:  print(model.names)
@@ -143,53 +143,3 @@ if uploaded_file is not None:
         st.error(
             f"Could not load the model from `{MODEL_PATH}`. "
             f"Make sure your trained weights file is committed to the repo "
-            f"at that path.\n\nError: {e}"
-        )
-        st.stop()
-
-    image = Image.open(uploaded_file)
-
-    with st.spinner("Analyzing parking lot..."):
-        annotated_bgr, occupied, empty = run_inference(model, image)
-
-    total = occupied + empty
-    occupancy_pct = (occupied / total * 100) if total > 0 else 0
-    level = congestion_level(occupancy_pct)
-    rec = recommendation(occupancy_pct, empty)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Uploaded Image")
-        st.image(image, use_container_width=True)
-    with col2:
-        st.subheader("Detected Slots")
-        annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
-        st.image(annotated_rgb, use_container_width=True)
-
-    st.markdown("---")
-    st.subheader("Parking Summary")
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Slots", total)
-    m2.metric("Occupied", occupied)
-    m3.metric("Available", empty)
-    m4.metric("Occupancy", f"{occupancy_pct:.1f}%")
-
-    st.progress(min(occupancy_pct / 100, 1.0))
-
-    level_color = {"Low": "🟢", "Moderate": "🟡", "High": "🔴"}[level]
-    st.write(f"**Congestion Level:** {level_color} {level}")
-    st.info(rec)
-
-else:
-    st.info("👆 Upload a parking lot image to get started.")
-    st.markdown(
-        """
-        **How it works**
-        1. Upload a photo of a parking lot.
-        2. The YOLOv8 model detects every slot in the image.
-        3. Each slot is classified as occupied (red box) or empty (green box).
-        4. You get total/occupied/available counts, an occupancy percentage,
-           a congestion level, and a recommendation.
-        """
-    )
