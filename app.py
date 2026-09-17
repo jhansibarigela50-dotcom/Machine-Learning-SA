@@ -143,3 +143,4 @@ if uploaded_file is not None:
         st.error(
             f"Could not load the model from `{MODEL_PATH}`. "
             f"Make sure your trained weights file is committed to the repo "
+        )
