@@ -80,7 +80,7 @@ if uploaded_file is not None:
     n_total = n_occupied + n_empty
 
     with col_img:
-        st.image(annotated_rgb, caption=f"Detections ({elapsed:.2f}s)", use_column_width=True)
+        st.image(annotated_rgb, caption=f"Detections ({elapsed:.2f}s)", use_container_width=True)
 
     with col_stats:
         st.subheader("📊 Occupancy Summary")
