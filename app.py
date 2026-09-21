@@ -1,146 +1,116 @@
 """
-ParkVision AI - Intelligent Urban Parking Analytics & Space Optimisation
-Streamlit web app that runs a trained YOLOv8 model on an uploaded parking
-lot image, marks each slot as Occupied / Empty, and shows occupancy stats
-and a recommendation.
-
-Run locally:
-    streamlit run app.py
+ParkVision AI — Smart Parking Occupancy Dashboard
+Loads a trained YOLO model and detects occupied/empty parking spaces
+in an uploaded image, then shows occupancy stats and congestion insights.
 """
 
 import streamlit as st
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np
+import pandas as pd
 import cv2
+import time
 
-# --------------------------------------------------------------------------
-# CONFIG — edit these to match how you trained your model
-# --------------------------------------------------------------------------
-MODEL_PATH = "parkvision_yolo_best_v2.pt"
-
-# IMPORTANT: this must match the class order your model was trained with.
-# Check it yourself in Colab with:  print(model.names)
-# and edit this dict so the keys/order line up exactly.
-CLASS_NAMES = {
-    0: "empty",
-    1: "occupied",
-}
-
-CONFIDENCE_THRESHOLD = 0.4
-
-# Colors are in BGR (OpenCV format)
-COLOR_EMPTY = (0, 200, 0)       # green
-COLOR_OCCUPIED = (0, 0, 230)    # red
-
-# --------------------------------------------------------------------------
-# PAGE SETUP
-# --------------------------------------------------------------------------
+# ---------- Page config ----------
 st.set_page_config(
     page_title="ParkVision AI",
-    page_icon="🅿️",
+    page_icon="🚗",
     layout="wide",
 )
 
-st.title("🅿️ ParkVision AI")
-st.caption("Intelligent Urban Parking Analytics & Space Optimisation")
+# ---------- Constants ----------
+MODEL_PATH = "model/parkvision_yolo_best_v2.pt"
+CONF_THRESHOLD_DEFAULT = 0.4
 
-
-# --------------------------------------------------------------------------
-# MODEL LOADING (cached so it only loads once per session)
-# --------------------------------------------------------------------------
+# ---------- Load model (cached so it only loads once) ----------
 @st.cache_resource
-def load_model(path: str):
+def load_model(path):
     return YOLO(path)
 
+model = load_model(MODEL_PATH)
 
-def get_label(class_id: int) -> str:
-    """Map a class id to a normalized label, defaulting sensibly if unknown."""
-    name = CLASS_NAMES.get(class_id, "unknown").lower()
-    if "occ" in name or name in ("car", "vehicle", "busy"):
-        return "occupied"
-    return "empty"
+# Figure out which class names mean "occupied" vs "empty" automatically,
+# so this works regardless of exact label spelling (e.g. "space-occupied", "occupied", "car").
+def classify_names(names_dict):
+    occupied_ids, empty_ids = [], []
+    for idx, name in names_dict.items():
+        lname = name.lower()
+        if "occup" in lname or "car" in lname or "busy" in lname:
+            occupied_ids.append(idx)
+        elif "empty" in lname or "free" in lname or "vacant" in lname:
+            empty_ids.append(idx)
+    return occupied_ids, empty_ids
 
+occupied_ids, empty_ids = classify_names(model.names)
 
-def run_inference(model, image: Image.Image):
-    """Run YOLO on a PIL image, return (annotated_bgr_image, occupied_count, empty_count)."""
-    img_rgb = np.array(image.convert("RGB"))
-    img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+# ---------- Sidebar ----------
+st.sidebar.title("⚙️ Settings")
+conf_threshold = st.sidebar.slider("Detection confidence threshold", 0.1, 0.9, CONF_THRESHOLD_DEFAULT, 0.05)
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Model classes detected:**")
+st.sidebar.json(model.names)
 
-    results = model.predict(img_rgb, conf=CONFIDENCE_THRESHOLD, verbose=False)
-    result = results[0]
+# ---------- Header ----------
+st.title("🚗 ParkVision AI")
+st.caption("Smart parking occupancy detection — upload a parking lot image to see live slot status.")
 
-    occupied_count = 0
-    empty_count = 0
+# ---------- Input ----------
+uploaded_file = st.file_uploader("Upload a parking lot image", type=["jpg", "jpeg", "png"])
 
-    for box in result.boxes:
-        cls_id = int(box.cls[0])
-        conf = float(box.conf[0])
-        x1, y1, x2, y2 = map(int, box.xyxy[0])
-
-        label = get_label(cls_id)
-        if label == "occupied":
-            occupied_count += 1
-            color = COLOR_OCCUPIED
-        else:
-            empty_count += 1
-            color = COLOR_EMPTY
-
-        cv2.rectangle(img_bgr, (x1, y1), (x2, y2), color, 2)
-        text = f"{label} {conf:.2f}"
-        (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-        cv2.rectangle(img_bgr, (x1, y1 - th - 8), (x1 + tw + 4, y1), color, -1)
-        cv2.putText(
-            img_bgr, text, (x1 + 2, y1 - 4),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA,
-        )
-
-    return img_bgr, occupied_count, empty_count
-
-
-def congestion_level(occupancy_pct: float) -> str:
-    if occupancy_pct < 40:
-        return "Low"
-    elif occupancy_pct <= 75:
-        return "Moderate"
-    else:
-        return "High"
-
-
-def recommendation(occupancy_pct: float, available: int) -> str:
-    if available == 0:
-        return "🚫 Parking full — try another area."
-    if occupancy_pct > 75:
-        return "⚠️ Parking is nearly full — consider another location if you need guaranteed space."
-    return "✅ Slots available — proceed to this parking lot."
-
-
-# --------------------------------------------------------------------------
-# SIDEBAR
-# --------------------------------------------------------------------------
-with st.sidebar:
-    st.header("About")
-    st.write(
-        "Upload a parking lot image and ParkVision AI will detect each "
-        "slot, mark it as **occupied** or **empty**, and summarise "
-        "availability."
-    )
-    st.markdown("---")
-    st.write(f"Confidence threshold: **{CONFIDENCE_THRESHOLD}**")
-
-
-# --------------------------------------------------------------------------
-# MAIN APP
-# --------------------------------------------------------------------------
-uploaded_file = st.file_uploader(
-    "Upload a parking lot image", type=["jpg", "jpeg", "png"]
-)
+col_img, col_stats = st.columns([2, 1])
 
 if uploaded_file is not None:
-    try:
-        model = load_model(MODEL_PATH)
-    except Exception as e:
-        st.error(
-            f"Could not load the model from `{MODEL_PATH}`. "
-            f"Make sure your trained weights file is committed to the repo "
-        )
+    image = Image.open(uploaded_file).convert("RGB")
+    img_array = np.array(image)
+
+    with st.spinner("Running detection..."):
+        start = time.time()
+        results = model.predict(img_array, conf=conf_threshold, verbose=False)
+        elapsed = time.time() - start
+
+    result = results[0]
+    annotated = result.plot()  # BGR numpy array with boxes drawn
+    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+
+    # Count detections per class
+    class_ids = result.boxes.cls.cpu().numpy().astype(int) if result.boxes is not None else []
+    n_occupied = sum(1 for c in class_ids if c in occupied_ids)
+    n_empty = sum(1 for c in class_ids if c in empty_ids)
+    n_total = n_occupied + n_empty
+
+    with col_img:
+        st.image(annotated_rgb, caption=f"Detections ({elapsed:.2f}s)", use_column_width=True)
+
+    with col_stats:
+        st.subheader("📊 Occupancy Summary")
+        st.metric("Total spaces detected", n_total)
+        st.metric("Occupied", n_occupied)
+        st.metric("Available", n_empty)
+
+        if n_total > 0:
+            occupancy_rate = n_occupied / n_total * 100
+            st.progress(min(int(occupancy_rate), 100))
+            st.write(f"**Occupancy rate:** {occupancy_rate:.1f}%")
+
+            # Congestion insight
+            if occupancy_rate >= 90:
+                st.error("🔴 High congestion — lot nearly full")
+            elif occupancy_rate >= 60:
+                st.warning("🟠 Moderate congestion")
+            else:
+                st.success("🟢 Low congestion — plenty of space")
+
+            chart_df = pd.DataFrame({
+                "Status": ["Occupied", "Available"],
+                "Count": [n_occupied, n_empty]
+            })
+            st.bar_chart(chart_df.set_index("Status"))
+        else:
+            st.info("No parking spaces detected. Try lowering the confidence threshold.")
+
+else:
+    st.info("👆 Upload a parking lot image to get started.")
+
+st.markdown("---")
+st.caption("ParkVision AI · Trained on the PKLot dataset · Built with YOLO + Streamlit")
