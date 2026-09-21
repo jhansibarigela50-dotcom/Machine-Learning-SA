@@ -17,7 +17,7 @@ import cv2
 # --------------------------------------------------------------------------
 # CONFIG — edit these to match how you trained your model
 # --------------------------------------------------------------------------
-MODEL_PATH = "best.pt"
+MODEL_PATH = "parkvision_yolo_best.pt"
 
 # IMPORTANT: this must match the class order your model was trained with.
 # Check it yourself in Colab with:  print(model.names)
