@@ -32,7 +32,7 @@ The project architecture was designed after reviewing vision-based parking slot 
 * **Dataset Source**: Standardized parking lot dataset featuring diverse weather conditions (sunny, overcast, rainy).
 * **Data Subset & Balance**: Extracted a balanced subset containing over 100+ representative images per class (`occupied` and `empty`) to prevent class bias.
 * **Splitting Ratio**: Divided the dataset into 70% training, 15% validation, and 15% testing splits.
-* **Preprocessing & Standardization**: Resized all input slot images to $224 \times 224$ pixels and normalized pixel values to a $[0, 1]$ range for model compatibility.
+* **Preprocessing & Standardization**: Resized all input slot images to 224 x 224 pixels and normalized pixel values to a $[0, 1]$ range for model compatibility.
 * **Data Augmentation**: Applied dynamic spatial transformations (rotation, horizontal flips) and brightness/contrast adjustments to simulate varying sunlight, shadows, and angle changes.
 
 # Model Configuration
