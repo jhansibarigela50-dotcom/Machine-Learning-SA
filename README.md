@@ -72,21 +72,12 @@ The web application is deployed on Streamlit Cloud using files hosted in this re
 
 # Screenshots
 
-*[Insert screenshots of your running Streamlit application here — including the image upload panel, annotated parking output, metrics summary, and recommendations]*[cite: 2]
+<img width="2810" height="926" alt="image" src="https://github.com/user-attachments/assets/9f93c05c-4fa5-4ea2-ad83-2ab828bd453f" />
 
-# Example Test Images
+<img width="1600" height="731" alt="image" src="https://github.com/user-attachments/assets/ea647ce1-b3cf-4687-92ec-c5adf968f825" />
 
-* **Standard Parking Framing**: Upload of a standard daylight parking lot photo[cite: 2].
-  *[Insert screenshot of result]*[cite: 2]
+<img width="1600" height="726" alt="image" src="https://github.com/user-attachments/assets/7c9e46ea-97b2-4714-b29e-c7f3cc2d35aa" />
 
-* **High-Altitude / Wide Angle**: Upload of a wide-angle lot view[cite: 2].
-  *[Insert screenshot of result]*[cite: 2]
-
-* **Shadowed / Occluded Scene**: Upload of an image with heavy shadows or vehicles parked closely together[cite: 2].
-  *[Insert screenshot of result]*[cite: 2]
-
-* **Rainy / Overcast Scene**: Upload of an image captured under rainy or wet surface conditions[cite: 2].
-  *[Insert screenshot of result]*[cite: 2]
 
 # Key Research Findings That Shaped This Project
 
